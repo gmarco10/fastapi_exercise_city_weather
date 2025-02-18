@@ -1,0 +1,2 @@
+# fastapi_exercise_city_weather
+fastapi exercise
