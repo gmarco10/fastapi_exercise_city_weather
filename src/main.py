@@ -4,16 +4,11 @@ from sqlalchemy.orm import sessionmaker
 
 DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/city_weather_db"
 engine = create_engine(DATABASE_URL, echo=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-def get_session():
-  db = SessionLocal()
-  try:
-    yield db
-  finally:
-      db.close()
+Session = sessionmaker(bind=engine)
+session = Session()
 
 # city table
+from datetime import datetime
 from sqlalchemy import Column, Integer, String, Float, DateTime, func
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -27,5 +22,85 @@ class City(Base):
   country = Column(String, nullable=False)
   latitude = Column(Float, nullable=False)
   longitude = Column(Float, nullable=False)
-  created_at = Column(DateTime, server_default=func.now())
-  updated_at = Column(DateTime, onupdate=func.now(), server_default=func.now())
+  created_at = Column(DateTime, default=datetime.now, nullable=False)
+  updated_at = Column(DateTime, onupdate=datetime.now, default=datetime.now, nullable=False)
+
+
+# city model (pydantic)
+from datetime import datetime
+# from typing import List
+from pydantic import BaseModel
+
+
+class CityBaseSchema(BaseModel):
+    id: int
+    name: str
+
+class CityParamsSchema(BaseModel):
+    name: str
+    country: str
+    latitude: float
+    longitude: float
+
+class CityExtendedSchema(CityParamsSchema):
+    latitude: float
+    longitude: float
+    created_at: datetime
+    updated_at: datetime
+
+from sqlalchemy.orm import sessionmaker, Session
+from fastapi import FastAPI, HTTPException
+
+
+# FastAPI instance
+app = FastAPI()
+
+
+# API Endpoints
+@app.get("/cities/", response_model=list[CityBaseSchema])
+def get_cities()  -> list[CityBaseSchema]:
+  cities_query = session.query(City)
+  return cities_query.all()
+
+@app.get("/cities/{id}", response_model = CityExtendedSchema)
+def get_city(id: int) -> CityExtendedSchema:
+    cities_query = session.query(City)
+    city = cities_query.filter(City.id == id).first()
+    if not city:
+      raise HTTPException(status_code=404, detail="City not found")
+    return city.__dict__
+
+@app.post("/cities/", response_model=CityExtendedSchema)
+def create_city(city: CityParamsSchema):
+  new_city = City(name=city.name, country=city.country, latitude=city.latitude, longitude=city.longitude)
+  session.add(new_city)
+  session.commit()
+  session.refresh(new_city)
+  return new_city.__dict__
+
+@app.put("/cities/{id}", response_model=CityExtendedSchema)
+def update_city(id: int, city: CityParamsSchema):
+  cities_query = session.query(City)
+  db_city = cities_query.filter(City.id == id).first()
+  if not db_city:
+      raise HTTPException(status_code=404, detail="City not found")
+
+  db_city.name = city.name
+  db_city.country = city.country
+  db_city.latitude = city.latitude
+  db_city.longitude = city.longitude
+
+  session.commit()
+  session.refresh(db_city)
+  return db_city.__dict__
+
+@app.delete("/cities/{id}", response_model=dict)
+def delete_city(id: int, ):
+  cities_query = session.query(City)
+  db_city = cities_query.filter(City.id == id).first()
+  if not db_city:
+      raise HTTPException(status_code=404, detail="City not found")
+
+  session.delete(db_city)
+  session.commit()
+  return {"message": "City successfully deleted"}
