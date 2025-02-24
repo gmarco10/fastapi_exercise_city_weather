@@ -9,7 +9,7 @@ session = Session()
 
 # city table
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, func
+from sqlalchemy import Column, Integer, String, Float, DateTime, asc, desc
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -19,7 +19,7 @@ class City(Base):
 
   id = Column(Integer, primary_key=True, index=True)
   name = Column(String, nullable=False)
-  country = Column(String, nullable=False)
+  country = Column(String, nullable=True)
   latitude = Column(Float, nullable=False)
   longitude = Column(Float, nullable=False)
   created_at = Column(DateTime, default=datetime.now, nullable=False)
@@ -28,7 +28,7 @@ class City(Base):
 
 # city model (pydantic)
 from datetime import datetime
-# from typing import List
+from typing import Optional
 from pydantic import BaseModel
 
 
@@ -38,9 +38,9 @@ class CityBaseSchema(BaseModel):
 
 class CityParamsSchema(BaseModel):
     name: str
-    country: str
     latitude: float
     longitude: float
+    country: Optional[str] = None
 
 class CityExtendedSchema(CityParamsSchema):
     latitude: float
@@ -57,11 +57,6 @@ app = FastAPI()
 
 
 # API Endpoints
-@app.get("/cities/", response_model=list[CityBaseSchema])
-def get_cities()  -> list[CityBaseSchema]:
-  cities_query = session.query(City)
-  return cities_query.all()
-
 @app.get("/cities/{id}", response_model = CityExtendedSchema)
 def get_city(id: int) -> CityExtendedSchema:
     cities_query = session.query(City)
@@ -69,6 +64,28 @@ def get_city(id: int) -> CityExtendedSchema:
     if not city:
       raise HTTPException(status_code=404, detail="City not found")
     return city.__dict__
+
+@app.get("/cities/", response_model=list[CityBaseSchema])
+def get_cities(
+    name: Optional[str] = None,
+    country: Optional[str] = None,
+    sort_by: str = "id",
+    order: str = "asc"
+):
+    cities_query = session.query(City)
+
+    if name:
+        cities_query = cities_query.filter(City.name.ilike(f"%{name}%"))
+    if country:
+        cities_query = cities_query.filter(City.country.ilike(f"%{country}%"))
+
+    if order == "desc":
+        cities_query = cities_query.order_by(desc(getattr(City, sort_by, City.id)))
+    else:
+        cities_query = cities_query.order_by(asc(getattr(City, sort_by, City.id)))
+
+    return cities_query.all()
+
 
 @app.post("/cities/", response_model=CityExtendedSchema)
 def create_city(city: CityParamsSchema):
