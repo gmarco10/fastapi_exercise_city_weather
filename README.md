@@ -11,10 +11,9 @@ $ alembic init alembic
 
 Create database
 ```
-$ sudo -u postgres psql -c "CREATE DATABASE city_weather_db;"
+$ docker run --name fastapi-postgres -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=city_weather_db -p 5432:5432 -d postgres
 
 ```
-
 
 Edit alembic.ini to have the DATABASE URL
 
@@ -24,6 +23,10 @@ and apply
 $ alembic revision --autogenerate -m "create cities table"
 
 $ alembic upgrade head
+```
 
 
+To rollback migration:
+```
+$ alembic downgrade -N
 ```
