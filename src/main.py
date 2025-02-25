@@ -9,7 +9,7 @@ session = Session()
 
 # city table
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, asc, desc
+from sqlalchemy import Column, Integer, String, Float, DateTime, func, asc, desc
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -22,8 +22,8 @@ class City(Base):
   country = Column(String, nullable=True)
   latitude = Column(Float, nullable=False)
   longitude = Column(Float, nullable=False)
-  created_at = Column(DateTime, default=datetime.now, nullable=False)
-  updated_at = Column(DateTime, onupdate=datetime.now, default=datetime.now, nullable=False)
+  created_at = Column(DateTime, server_default=func.now(), nullable=False)
+  updated_at = Column(DateTime, onupdate=func.now(), server_default=func.now(), nullable=False)
 
 
 # city model (pydantic)

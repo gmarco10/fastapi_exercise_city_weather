@@ -23,6 +23,10 @@ and apply
 $ alembic revision --autogenerate -m "create cities table"
 
 $ alembic upgrade head
+```
 
 
+To rollback migration:
+```
+$ alembic downgrade -N
 ```
