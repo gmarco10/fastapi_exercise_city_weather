@@ -42,7 +42,10 @@ class CityParamsSchema(BaseModel):
     longitude: float
     country: Optional[str] = None
 
-class CityExtendedSchema(CityParamsSchema):
+class CityIdSchema(BaseModel):
+   id: int
+
+class CityExtendedSchema(CityParamsSchema, CityIdSchema):
     latitude: float
     longitude: float
     created_at: datetime
