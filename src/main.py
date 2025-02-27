@@ -12,6 +12,8 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, Float, DateTime, func, asc, desc
 from sqlalchemy.ext.declarative import declarative_base
 
+from weather import get_weather_data
+
 Base = declarative_base()
 
 class City(Base):
@@ -50,6 +52,12 @@ class CityExtendedSchema(CityParamsSchema, CityIdSchema):
     longitude: float
     created_at: datetime
     updated_at: datetime
+
+class WeatherResponseSchema(BaseModel):
+    temperature: float
+    weather_condition: float
+    wind_speed: float
+    humidity_percentage: float
 
 from sqlalchemy.orm import sessionmaker, Session
 from fastapi import FastAPI, HTTPException, status
@@ -123,3 +131,21 @@ def delete_city(id: int):
 
   session.delete(db_city)
   session.commit()
+
+@app.get("/cities/{id}/weather", response_model=WeatherResponseSchema )
+def city_weather(id: int):
+    cities_query = session.query(City)
+    city = cities_query.filter(City.id == id).first()
+    if not city:
+      raise HTTPException(status_code=404, detail="City not found")
+
+    try:
+      weather_data = get_weather_data(city.latitude, city.longitude)
+      return WeatherResponseSchema(
+          temperature=weather_data["temperature"],
+          humidity_percentage=weather_data["humidity_percentage"],
+          weather_condition=weather_data["weather_condition"],
+          wind_speed=weather_data["wind_speed"]
+      )
+    except Exception as e:
+        raise HTTPException(status_code=503, detail="Failure to fetch data from the Open-Meteo API")

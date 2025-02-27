@@ -4,3 +4,9 @@ sqlalchemy
 psycopg2-binary
 alembic
 audit-alembic
+
+openmeteo-requests
+requests-cache
+retry-requests
+numpy
+pandas
