@@ -52,7 +52,7 @@ class CityExtendedSchema(CityParamsSchema, CityIdSchema):
     updated_at: datetime
 
 from sqlalchemy.orm import sessionmaker, Session
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status
 
 
 # FastAPI instance
@@ -90,7 +90,7 @@ def get_cities(
     return cities_query.all()
 
 
-@app.post("/cities/", response_model=CityExtendedSchema)
+@app.post("/cities/", response_model=CityExtendedSchema, status_code=status.HTTP_201_CREATED)
 def create_city(city: CityParamsSchema):
   new_city = City(name=city.name, country=city.country, latitude=city.latitude, longitude=city.longitude)
   session.add(new_city)
@@ -114,8 +114,8 @@ def update_city(id: int, city: CityParamsSchema):
   session.refresh(db_city)
   return db_city.__dict__
 
-@app.delete("/cities/{id}", response_model=dict)
-def delete_city(id: int, ):
+@app.delete("/cities/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_city(id: int):
   cities_query = session.query(City)
   db_city = cities_query.filter(City.id == id).first()
   if not db_city:
@@ -123,4 +123,3 @@ def delete_city(id: int, ):
 
   session.delete(db_city)
   session.commit()
-  return {"message": "City successfully deleted"}
