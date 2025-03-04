@@ -17,6 +17,11 @@ def get_weather_data(latitude: float, longitude: float):
 
   try:
     response = retry_session.get(url, params=params)
+    if response.from_cache:
+        print("Returning cached data")
+    else:
+        print("Fetching fresh data from API")
+
     response.raise_for_status()
     data = response.json()
   except requests.exceptions.RequestException as e:
