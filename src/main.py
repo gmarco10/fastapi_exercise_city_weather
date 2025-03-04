@@ -148,4 +148,4 @@ def city_weather(id: int):
           wind_speed=weather_data["wind_speed"]
       )
     except Exception as e:
-        raise HTTPException(status_code=503, detail="Failure to fetch data from the Open-Meteo API")
+        raise HTTPException(status_code=503, detail=f"Failure to fetch data from the Open-Meteo API - {e}")
