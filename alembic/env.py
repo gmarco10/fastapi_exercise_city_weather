@@ -5,6 +5,8 @@ from sqlalchemy import pool
 
 from alembic import context
 
+import audit_alembic
+
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
@@ -32,6 +34,8 @@ target_metadata = Base.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
+version = 123
+auditor = audit_alembic.Auditor.create(version)
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -51,6 +55,8 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        on_version_apply=auditor.listen,
+
     )
 
     with context.begin_transaction():
@@ -72,7 +78,7 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection, target_metadata=target_metadata, on_version_apply=auditor.listen
         )
 
         with context.begin_transaction():
