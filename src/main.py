@@ -9,12 +9,21 @@ session = Session()
 
 # city table
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, func, asc, desc
+from sqlalchemy import Table, Column, Integer, String, Float, DateTime, func, asc, desc, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+
 
 from weather import get_weather_data
 
 Base = declarative_base()
+
+user_cities = Table(
+    "user_cities",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("city_id", Integer, ForeignKey("cities.id"), primary_key=True)
+)
 
 class City(Base):
   __tablename__ = "cities"
@@ -24,6 +33,36 @@ class City(Base):
   country = Column(String, nullable=True)
   latitude = Column(Float, nullable=False)
   longitude = Column(Float, nullable=False)
+
+  user_visitors = relationship("User", secondary=user_cities, back_populates="visited_cities")
+
+  created_at = Column(DateTime, server_default=func.now(), nullable=False)
+  updated_at = Column(DateTime, onupdate=func.now(), server_default=func.now(), nullable=False)
+
+
+class User(Base):
+  __tablename__ = "users"
+
+  id = Column(Integer, primary_key=True, index=True)
+  name = Column(String, nullable=False)
+
+  posts = relationship("Post", back_populates="owner")
+  visited_cities = relationship("City", secondary=user_cities, back_populates="user_visitors")
+
+  created_at = Column(DateTime, server_default=func.now(), nullable=False)
+  updated_at = Column(DateTime, onupdate=func.now(), server_default=func.now(), nullable=False)
+
+
+class Post(Base):
+  __tablename__ = "posts"
+
+  id = Column(Integer, primary_key=True, index=True)
+  title = Column(String, index=True)
+  content = Column(String)
+
+  owner_id = Column(Integer, ForeignKey("users.id"))
+  owner = relationship("User", back_populates="posts")
+
   created_at = Column(DateTime, server_default=func.now(), nullable=False)
   updated_at = Column(DateTime, onupdate=func.now(), server_default=func.now(), nullable=False)
 
@@ -149,3 +188,63 @@ def city_weather(id: int):
       )
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Failure to fetch data from the Open-Meteo API - {e}")
+
+class PostBase(BaseModel):
+    title: str
+    content: str
+
+class PostCreate(PostBase):
+    owner_id: int
+
+class PostResponse(PostBase):
+    id: int
+    owner_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+class UserBase(BaseModel):
+    name: str
+
+class UserCreate(UserBase):
+    pass
+
+class UserResponse(UserBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    posts: list[PostResponse] = []
+    visited_cities: list[CityBaseSchema]
+
+    class Config:
+        orm_mode = True
+
+
+@app.post("/users/", response_model=UserResponse)
+def create_user(user: UserCreate):
+
+  new_user = User(name=user.name)
+  session.add(new_user)
+  session.commit()
+  session.refresh(new_user)
+  return new_user.__dict__
+
+
+@app.get("/users/", response_model=list[UserResponse])
+def get_users():
+    users_query = session.query(User)
+
+    return users_query.all()
+
+@app.get("/users/{user_id}", response_model=UserResponse)
+def get_user(user_id: int):
+    users_query = session.query(User)
+    user = users_query.filter(User.id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+#todo: missing user and post crud actions
