@@ -2,7 +2,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker, declarative_base
 from typing import Iterator
 
-DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/city_weather_db"
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL, echo=True)
 Base = declarative_base()
 
