@@ -12,8 +12,6 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, Float, DateTime, func, asc, desc
 from sqlalchemy.ext.declarative import declarative_base
 
-from weather import get_weather_data
-
 Base = declarative_base()
 
 class City(Base):
@@ -97,7 +95,6 @@ def get_cities(
 
     return cities_query.all()
 
-
 @app.post("/cities/", response_model=CityExtendedSchema, status_code=status.HTTP_201_CREATED)
 def create_city(city: CityParamsSchema):
   new_city = City(name=city.name, country=city.country, latitude=city.latitude, longitude=city.longitude)
@@ -132,20 +129,42 @@ def delete_city(id: int):
   session.delete(db_city)
   session.commit()
 
-@app.get("/cities/{id}/weather", response_model=WeatherResponseSchema )
+#### celery api
+
+from celery_app import add, request_api_weather
+from celery.result import AsyncResult
+from celery_app import add
+
+@app.get("/cities/{id}/weather", response_model=dict )
 def city_weather(id: int):
     cities_query = session.query(City)
     city = cities_query.filter(City.id == id).first()
     if not city:
       raise HTTPException(status_code=404, detail="City not found")
 
-    try:
-      weather_data = get_weather_data(city.latitude, city.longitude)
-      return WeatherResponseSchema(
-          temperature=weather_data["temperature"],
-          humidity_percentage=weather_data["humidity_percentage"],
-          weather_condition=weather_data["weather_condition"],
-          wind_speed=weather_data["wind_speed"]
-      )
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Failure to fetch data from the Open-Meteo API - {e}")
+    task = request_api_weather.delay(city.latitude, city.longitude)
+    return {"task_id": task.id, "message": "Queued task."}
+
+@app.get("/cities/weather_celery_response/{task_id}", response_model=WeatherResponseSchema )
+def city_weather_response(task_id: str):
+    task_result = AsyncResult(task_id, app=request_api_weather)
+    if task_result.ready():
+        return WeatherResponseSchema(
+            temperature=task_result.result["temperature"],
+            humidity_percentage=task_result.result["humidity_percentage"],
+            weather_condition=task_result.result["weather_condition"],
+            wind_speed=task_result.result["wind_speed"]
+            )
+
+@app.post("/sum/")
+def calculate_sum(x: int, y: int):
+    task = add.delay(x, y)
+    return {"task_id": task.id, "message": "Queued task."}
+
+@app.get("/result/{task_id}")
+def get_result(task_id: str):
+
+    task_result = AsyncResult(task_id, app=add)
+    if task_result.ready():
+        return {"task_id": task_id, "result": task_result.result}
+    return {"task_id": task_id, "status": "task_result.status"}

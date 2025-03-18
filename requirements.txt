@@ -8,3 +8,6 @@ audit-alembic
 requests-cache
 retry-requests
 
+celery
+redis
+uvloop
