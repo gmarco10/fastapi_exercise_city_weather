@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from routers import users, cities, posts
+from src.routers import users, cities, posts
 
 router = APIRouter()
 router.include_router(users.router, prefix="/users", tags=["users"])

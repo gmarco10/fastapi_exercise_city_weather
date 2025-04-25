@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from database import db_session
-from models import City
-from schemas import CityExtendedSchema, CityParamsSchema, CityBaseSchema, WeatherResponseSchema
+from src.database import db_session
+from src.models import City
+from src.schemas import CityExtendedSchema, CityParamsSchema, CityBaseSchema, WeatherResponseSchema
 from sqlalchemy.orm import Session
 from sqlalchemy import asc, desc
 
 from typing import Optional
 
-from external.weather import get_weather_data
+from src.external.weather import get_weather_data
 
 router = APIRouter()
 

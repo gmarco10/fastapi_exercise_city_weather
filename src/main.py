@@ -1,4 +1,4 @@
-from urls import router
+from src.urls import router
 from fastapi import FastAPI
 
 

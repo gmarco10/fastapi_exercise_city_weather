@@ -1,7 +1,7 @@
 
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Table, func
 from sqlalchemy.orm import relationship
-from database import Base
+from src.database import Base
 
 user_cities = Table(
     "user_cities",
