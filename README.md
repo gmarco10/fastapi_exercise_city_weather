@@ -30,3 +30,15 @@ To rollback migration:
 ```
 $ alembic downgrade -N
 ```
+
+run server:
+from root:
+```
+$ uvicorn src.main:app --reload
+```
+
+run tests:
+from root:
+```
+$ pytest
+```

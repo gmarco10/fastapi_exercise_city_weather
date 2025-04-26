@@ -1,18 +1,30 @@
 # database setup
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+
+from fastapi import Depends
+
+from sqlalchemy.orm import Session, sessionmaker
 
 DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/city_weather_db"
 engine = create_engine(DATABASE_URL, echo=True)
-Session = sessionmaker(bind=engine)
-session = Session()
+
+from typing import Iterator
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def db_session():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # city table
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Float, DateTime, func, asc, desc
 from sqlalchemy.ext.declarative import declarative_base
 
-from weather import get_weather_data
+from src.weather import get_weather_data
 
 Base = declarative_base()
 
@@ -59,9 +71,8 @@ class WeatherResponseSchema(BaseModel):
     wind_speed: float
     humidity_percentage: float
 
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session
 from fastapi import FastAPI, HTTPException, status
-
 
 # FastAPI instance
 app = FastAPI()
@@ -69,7 +80,7 @@ app = FastAPI()
 
 # API Endpoints
 @app.get("/cities/{id}", response_model = CityExtendedSchema)
-def get_city(id: int) -> CityExtendedSchema:
+def get_city(id: int, session: Session = Depends(db_session)) -> CityExtendedSchema:
     cities_query = session.query(City)
     city = cities_query.filter(City.id == id).first()
     if not city:
@@ -81,7 +92,8 @@ def get_cities(
     name: Optional[str] = None,
     country: Optional[str] = None,
     sort_by: str = "id",
-    order: str = "asc"
+    order: str = "asc",
+    session: Session = Depends(db_session)
 ):
     cities_query = session.query(City)
 
@@ -99,7 +111,7 @@ def get_cities(
 
 
 @app.post("/cities/", response_model=CityExtendedSchema, status_code=status.HTTP_201_CREATED)
-def create_city(city: CityParamsSchema):
+def create_city(city: CityParamsSchema, session: Session = Depends(db_session)):
   new_city = City(name=city.name, country=city.country, latitude=city.latitude, longitude=city.longitude)
   session.add(new_city)
   session.commit()
@@ -107,7 +119,7 @@ def create_city(city: CityParamsSchema):
   return new_city.__dict__
 
 @app.put("/cities/{id}", response_model=CityExtendedSchema)
-def update_city(id: int, city: CityParamsSchema):
+def update_city(id: int, city: CityParamsSchema, session: Session = Depends(db_session)):
   cities_query = session.query(City)
   db_city = cities_query.filter(City.id == id).first()
   if not db_city:
@@ -123,7 +135,7 @@ def update_city(id: int, city: CityParamsSchema):
   return db_city.__dict__
 
 @app.delete("/cities/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_city(id: int):
+def delete_city(id: int, session: Session = Depends(db_session)):
   cities_query = session.query(City)
   db_city = cities_query.filter(City.id == id).first()
   if not db_city:
@@ -133,7 +145,7 @@ def delete_city(id: int):
   session.commit()
 
 @app.get("/cities/{id}/weather", response_model=WeatherResponseSchema )
-def city_weather(id: int):
+def city_weather(id: int, session: Session = Depends(db_session)):
     cities_query = session.query(City)
     city = cities_query.filter(City.id == id).first()
     if not city:
